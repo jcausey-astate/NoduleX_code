@@ -1,1 +1,1 @@
-Download data archive http://bioinformatics.astate.edu/NoduleX/data.tar.gz and extract here.
+Download data archive http://bioinformatics.astate.edu/NoduleX/NoduleX_data.tar.gz and extract here.

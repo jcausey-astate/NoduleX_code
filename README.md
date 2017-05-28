@@ -2,7 +2,7 @@
 Supporting code for the paper _"Highly accurate model for prediction of lung nodule malignancy with CT scans"_.
 
 ## Instructions
-After cloning or downloading this repository, extract the files from (TODO:URL-HERE) into the `data` directory.  
+After cloning or downloading this repository, extract the files from (http://bioinformatics.astate.edu/NoduleX/NoduleX_data.tar.gz) into the `data` directory.  
 
 Many of the scripts contained here have several command-line options available.  Run the scripts with the `--help` option to see a usage listing.
 
