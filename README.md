@@ -1,5 +1,5 @@
 # NoduleX
-Supporting code for the paper _"/"_.
+Supporting code for the paper _"Highly accurate model for prediction of lung nodule malignancy with CT scans"_.
 
 ## Instructions
 After cloning or downloading this repository, extract the files from (TODO:URL-HERE) into the `data` directory.  
