@@ -6,6 +6,14 @@ After cloning or downloading this repository, extract the files from (http://bio
 
 Many of the scripts contained here have several command-line options available.  Run the scripts with the `--help` option to see a usage listing.
 
+### Requirements
+* Python2.7, `pip`
+    - A requirements file `NoduleX_python_requirements.txt` is provided listing required Python packages.  You can install them using:
+        - `pip install -r NoduleX_python_requirements.txt`
+    - Setting up a virtual environment is recommended.
+* QIF feature extraction requires Octave (version tested was 4.2.0), or MATLAB (with some modifications to the helper scripts, see QIF_extraction/README.md).
+* A POSIX-compatible system (Linux, Mac OS, or Linux shell under Windows) is assumed; many scripts given are written in Bash shell syntax.
+
 ### Running the CNN models against validation data
 Use the script `keras_CNN/keras_evaluate.py`, providing the correct model .json file (from `data/CNN_models`) and matching weights .hd5 file (from `data/CNN_weights`) and a dataset .hd5 file (from `data/CNN_datasets`).  For example:
 
@@ -69,6 +77,8 @@ Where `<YOUR-LIDC-IDRI-PATIENT-ID>` is the patient ID for the patient whose nodu
 
 #### Extracting QIF Features
 See the file `README.md` in the `QIF_extraction` directory for the steps required to compute QIF features given the "grey" and "binary" images in Analyze format as described above.
+
+
 
 
 
