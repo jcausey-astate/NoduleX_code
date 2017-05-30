@@ -46,7 +46,7 @@ With the following contents:
 PATIENT-0001~Nodule1
 ```
 
-**`nodule-list.2`*
+**`nodule-list.2`**
 ```
 PATIENT-0001~Nodule2
 ```
