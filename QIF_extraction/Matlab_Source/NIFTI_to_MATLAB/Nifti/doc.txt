@@ -1,0 +1,273 @@
+% CBI - NIFTI tools for Matlab
+%
+% (c) Jonas Larsson 2005
+%
+% NOTE: these tools currently do not support compressed Nifti files. 
+%
+% TOOLS FOR READING NIFTI FILES
+% =============================
+% cbiReadNiftiHeader.m
+% - Reads in the header of a Nifti-1 file
+% cbiReadNifti.m
+% - Reads in the data and header of a Nifti-1 file
+% 
+% TOOLS FOR WRITING NIFTI FILES
+% =============================
+% cbiWriteNiftiHeader.m
+% - Writes a Nifti-1 header
+% cbiWriteNifti.m
+% - Writes a Nifti-1 file (data and header)
+%
+% TOOLS FOR CONVERTING NIFTI FILES
+% ================================
+% cbiSwapNiftiDimensions.m
+% - Swaps the dimensions of a Nifti data set or file. Analogous to FSL avwswapdim, but correctly sets qform & sform data.
+%
+% NIFTI UTILITIES
+% ===============
+% cbiCreateNiftiHeader.m 
+% - Creates a new header and/or checks an existing header for consistency and valid fields
+% cbiHomogeneousToQuaternion.m 
+% - Converts a 4x4 or 3x3 matrix to quaternions
+% cbiQuaternionToHomogeneous.m
+% - Converts quaternions and qoffset data into a 4x4 homogeneous matrix
+% cbiSetNiftiQform.m
+% - Sets the qform and quaternion information of a Nifti header
+% cbiSetNiftiSform.m
+% - Sets the sform and srow information of a Nifti header
+% cbiMatlabDatatype2Nifti.m
+% - Converts matlab data type in string format to a Nifti-1 integer code; see nifti1.h for details 
+% cbiNiftiDatatype2Matlab.m
+% - Converts a Nifti-1 integer data tyoe code into matlab data type in string format
+% cbiSizeofNifti.m
+% - Returns the size in bytes per data point of a given Nifti-1 format.
+% nifti1.h
+% - Header file of the nifti-1 library written by Robert Cox; describes the Nifti-1 format
+
+
+
+function hdr=cbiCreateNiftiHeader(varargin)
+% hdr=cbiCreateNiftiHeader(varargin)
+%
+% Generates a NIFTI-compatible Matlab header struct that can be saved with cbiWriteNiftiHeader.
+% 
+% SYNTAX:
+% hdr=cbiCreateNiftiHeader
+%     No input arguments: generates a bare-bone header struct with correctly sized fields. 
+%     Sets endianness and default data type (float), with voxel size=1 mm isotropic.     
+% hdr=cbiCreateNiftiHeader(data)
+%     Input is a data array: generates a header to match data (essentially as option (1) but also sets hdr.dims)
+% hdr=cbiCreateNiftiHeader(hdr)
+%     Input is a header struct: adds missing fields to an existing header and ensures consistency.
+% hdr=cbiCreateNiftiHeader(hdr_field1,value1,hdr_field2,value2,...)
+%     Input is a set of parameter-value pairs, e.g. ( 'srow_x', [0 0 0 1] ). Sets the corresponding field.
+%
+%     The output is checked to make sure it is consistent (within limits). Specifically:
+%     - If a data array is given as input, hdr.dim will be set from this (overriding parameter-value pairs)
+%     - Quaternions will be set as follows:
+%       a) if neither qform44, or quatern_[b/c/d] are specified, will use existing hdr info 
+%          (if valid, qform44 takes precedence over quaternions)
+%       b) specifying a quaternion/qoffset as a parameter sets qform44 accordingly
+%       c) specifying a qform44 sets quaternions accordingly (overriding any quaternion parameters)
+%       d) if qform44 is empty, qform_code=0, else qform_code=1
+%     - Sform data will be set as follows:
+%     - a) if neither sform44 or srow_[x/y/z] are specified, will use  existing hdr info 
+%          (if valid, sform44 takes precedence over srow_[x/y/z]
+%     - b) specifying a srow_ paramater sets sform44 accordingly
+%     - c) specifying sform44 sets srows accordingly (overriding any srow parameters)
+%     - d) if sform44 is empty, sform_code=0, else sform_code=1
+%     - Setting the matlab_datatype also sets the NIFTI data type and bitpix appropriately (and vice versa). 
+%       (note: bitpix is determined by the datatype; setting it directly has no effect) 
+%     - Setting the file name also sets the magic number
+% 
+% Options 2-4 can be combined. The data and header input arguments must come before the parameter-value pairs.
+% cbiGetSwapVect.m
+%
+%      usage: cbiGetSwapVect(filename1,filename2)
+%         by: justin gardner; modified by Jonas Larsson for Nifti implementation
+%       date: 06/16/05
+%    purpose: find which dimensions to swap or flip
+%             so that the inplane anatomy and off-line
+%             reconstructed epi images match
+%             will return a swap vector which can then be passed
+%             to cbiSwapNiftiDimensions to swap data and Nifti header
+%              
+%       e.g.: swapdim('Anatomy/Inplane/jg050614+03+t1_2D_mprage_24sl.hdr','Pfiles_preMC/09+cbi_bold2_1500_3x3_24sl_recon.hdr')
+%
+%             Note that unlike avwswapdim, cbiSwapNiftiDimensions 
+%             correctly modifies header information to preserve 
+%             rotation fields in qform and sform.
+%             THEREFORE DO NOT USE avwswapdim. 
+%
+%             When called with no arguments, looks for
+%             the anatomy file in Raw/Anatomy/Inplane
+%             and the epi from either Raw/Pfiles_preMC or
+%             Raw/Pfiles
+%
+%       e.g.: swapdim;
+%
+%
+
+
+function [quatern, qfac, pixdim]=cbiHomogeneousToQuaternion( R )
+% Calculates quaternion parameters from a 4x4 matrix
+% [quatern, qfac, pixdim]=cbiHomogeneousToQuaternion( M44 )
+% 
+% - OR - (using a 3x3 rotation matrix)
+% [quatern, qfac, pixdim]=cbiHomogeneousToQuaternion( R )
+% 
+% Modified from nifti_io.c
+
+function nifti_datatype=cbiMatlabDatatype2Nifti(matlab_datatype);
+% function nifti_datatype=cbiMatlabDatatype2Nifti(matlab_datatype);
+%
+% Translates the Matlab datatype into a numeric (integer) Nifti datatype code
+
+function matlab_datatype=cbiNiftiDatatype2Matlab(nifti_datatype);
+% function matlab_datatype=cbiNiftiDatatype2Matlab(nifti_datatype);
+%
+% Translates the numeric (integer) datatype code of a Nifti header to the corresponding Matlab datatype
+
+
+function varargout=cbiQuaternionToHomogeneous(varargin)
+% [M,R,T]=cbiQuaternionToHomogeneous( quatern, pixdim, qfac, qoffset )
+% - OR -
+% [M,R,T]=cbiQuaternionToHomogeneous( hdr )
+
+function hdr = cbiReadNiftiHeader(fname)
+% hdr = cbiReadNiftiHeader(fname)
+% 
+% Loads the header from a NIFTI-1 file.  
+% The header struct contains all stored fields plus 
+% some additional extracted fields. These are:
+% .hdr_name    - name of header file
+% .img_name    - name of image file
+% .is_analyze  - 1 if valid Analyze, but not a valid NIFTI file, 0 otherwise
+% .single_file - flag for single file (1 for .nii, 0 for .hdr/.img)
+% .endian      - endianness of file
+% .matlab_datatype - data type in Matlab string format (see fread)
+% .qform44    - homogeneous transform matrix extracted from qform data (rigid body - native coordinate system) ([] for Analyze)
+% .sform44    - homogeneous transform matrix extracted from sform data (affine - optional alignment transform) ([] for Analyze) 
+
+
+function [data,hdr]=cbiReadNifti(fname,subset,prec,short_nan)
+% [data,hdr]=cbiReadNifti(fname,subset,prec,short_nan)
+% 
+% Loads all or part of a Nifti-1 file.
+%  Default is to load entire file as a double precision array
+%  with dimensions [xSize ySize zSize tSize] where x,y,z,t are
+%  defined according to the Nifti standard (x fastest changing 
+%  dimension, y second and so on - usually x corresponds to left-right,
+%  y to back-front, z to down-up, and t to early-late. 
+%  NB: will also work for quasi-5-dimensional data, e.g. 3D arrays of vectors
+%  defined on a single time point (t then being the dimensions of the vectors 
+%  at each point), i.e. hdr.dim(4)==1 and hdr.dim(5)>1. (0-offset index)
+%  Will not work with higher dimensional data sets (hdr.dim(4)>1 & hdr.dim(5)>1).
+%  Ignores hdr.dim(6) and higher.
+% 
+% hdr contains the Nifti header returned by readNiftiHeader.
+% 
+% Options:
+%  subset:    4x1 cell array describing image subset to retrieve. 1-offset (Matlab-style).
+%             Examples: 
+%             - to retrieve a single z-slice (e.g. 4):  subset={[],[],4,[]}
+%             - to retrieve a single voxel time series (e.g. [5,6,7]):  subset={5,6,7,[]}
+%             - to retrieve a single volume from a time series (e.g. second volume):  subset={[],[],[],2}
+%             - to retrieve a block of voxels from a volume: eg. subset={[4 50],[6 20],[1 10],[]}
+%             If data is quasi-5D, subset{4} defines the subset in dim(5)
+% 
+%  prec:      Storage type of returned data. Legal values are:
+%             'native' - data are returned as stored in file (no scaling). Only works for loading
+%              contiguous data (entire volumes).
+%             'double' - data are returned in Matlab standard double precision format (default)
+%  short_nan: NaN handling for signed short (int16) data. If 1, will treat -32768 (smallest 
+%             representable number) as NaN, reserving -32767..32767 for scaled data; otherwise
+%             treats -32786 as a real value. Default is 1. 
+% 
+% JL 20050223
+
+function hdr=cbiSetNiftiQform( hdr, mtx44, trns )
+% hdr=cbiSetNiftiQform( hdr, mtx44 )
+%  where mtx44 is a 4x4 homogeneous matrix
+% - OR -
+% hdr=cbiNiftiSetQform( hdr, R, T )
+%  where R is a 3x3 rotation matrix and T a translation 3-vector
+% 
+% Sets qform44 and updates quaternions, pixdim, and qoffsets accordingly.
+% Sets qcode=1
+
+function hdr=cbiSetNiftiSform( hdr, mtx44, trns )
+% hdr=cbiSetNiftiSform( hdr, mtx44 )
+%  where mtx44 is a 4x4 homogeneous matrix
+% - OR -
+% hdr=cbiSetNiftiSform( hdr, R, T )
+%  where R is a 3x3 rotation matrix and T a translation 3-vector
+% 
+% Sets sform44 and updates srow_x/y/z. 
+% Sets scode=1 
+
+function varargout=cbiSizeofNifti(datatype);
+% [nbytes,possnbytes]=cbiSizeofNifti(datatype);
+% 
+% Returns the number of bytes for a given Nifti data type
+% in string format (see fread for details).
+% Returns [] for unrecognized data types.
+%
+% WARNING: some data types are not unambiguously defined.
+% For these, the alternate number of bytes is output in 
+% possnbytes, if 2 output arguments are given.
+% These data types are:
+% Type     nbytes possnbytes
+% long     4      8
+% ulong    4      8
+
+function varargout=cbiSwapNiftiDimensions(varargin);
+% [newdata,newhdr,swapMatrix]=cbiSwapNiftiDimensions(data,hdr,swapvect);
+% - OR -
+% swapMatrix=cbiSwapNiftiDimensions(inputfile,outputfile,swapvect,[outputdatatype]);
+% 
+% Swaps the dimensions of a Nifti file or data set.
+% Modifies the qform44 and quaternions accordingly.
+% If sform44 is non-identity, also modifies the sform.
+% Equivalent to avwswapdim except it (hopefully correctly) modifies qform44/sform44 matrices
+% NOTE: Only modifies the first 3 dimensions of a file - but works with data with 4 or more dimensions.
+%
+% swapvect: a 3-vector with entries +/-(1,2,3) indicating axis changes/flips, e.g.:
+% - flip x (dimension 1):      swapvect=[-1 2 3]
+% - exchange x and z:          swapvect=[3 2 1]
+% - exchange x with flipped y: swapvect=[-2 1 3]
+%
+% NOTE: if the image is acquired in one of the cardinal directions (axial, sagittal, or coronal 
+% slice prescription) swapvect can be omitted, in which case the default is to swap the image axes 
+% to conform to a 'standard' right-handed coordinate system as follows:
+% - dimension i (fastest changing dimension) corresponds to x (increasing from left to right)
+% - dimension j (second fastest changing dimension) corresponds to y (increasing from back to front)
+% - dimension k (third fastest changing dimension) corresponds to z (increasing from bottom to top)
+% 
+% Optionally returns swap matrix
+%
+
+function [hdr,fid] = cbiWriteNiftiHeader(hdr,fname,no_overwrite,leave_open)
+% [hdr,fid] = cbiWriteNiftiHeader(hdr,fname [,no_overwrite,leave_open])
+% 
+% Saves a NIFTI-1 file header using the hdr struct provided.
+% See cbiReadNiftiHeader for details of header structure.
+
+function [byteswritten,hdr]=cbiWriteNifti(fname,data,hdr,prec,subset,short_nan);
+% [byteswritten,hdr]=cbiWriteNifti(filename,data,hdr,prec,subset,short_nan) 
+%  Uses user-defined header struct
+% [byteswritten,hdr]=cbiWriteNifti(filename,data,[],prec);
+%  Creates a new header
+% 
+% The header is always passed through cbiCreateNiftiHeader to ensure 
+% consistency with the data.
+%
+%  prec:      Precision (dataype) of output. Default (if no header is specified) is 'float32'. Use [] for default.
+%             Should be a recognized Matlab (or nifti) data type string.
+%  subset:    4x1 cell array describing image subset to save. 1-offset (Matlab-style).
+%             Only the following options are supported:
+%             - to save a single z-slice (e.g. 4):  subset={[],[],4,[]}
+%             - to save a single/multiple volumes of a time series (e.g. volumes 2-9):  subset={[],[],[],[2 9]}
+%  short_nan: NaN handling for signed short (int16) data. If 1, will treat save NaN's as -32768 (smallest 
+%             representable number) reserving -32767..32767 for scaled data; otherwise will save NaN as 0.
+%             Default is 1 (use -32768 as NaN).
