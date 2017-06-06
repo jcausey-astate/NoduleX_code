@@ -1,0 +1,3 @@
+[submodule "segment"]
+	path = segment
+	url = ssh://git@phab.cs.astate.edu/source/segment.git
