@@ -1,7 +1,7 @@
 #/bin/bash
 # Args: [-s] DOI-dir result-dir
 #  -s specifies "create symbolic links" to all files, don't actually copy
-#------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 
 # Platform-independant substitute for "readlink -f" based on code found at:
@@ -9,10 +9,20 @@
 # Modified to only care about "existence" (file or directory is OK)
 function get_realpath() {
 
-    [[ ! -e "$1" ]] && return 1 # failure : file does not exist.
-    [[ -n "$no_symlinks" ]] && local pwdp='pwd -P' || local pwdp='pwd' # do symlinks.
-    echo "$( cd "$( echo "${1%/*}" )" 2>/dev/null; $pwdp )"/"${1##*/}" # echo result.
-    return 0 # success
+	[[ ! -e "$1" ]] && return 1 # failure : file does not exist.
+	[[ -n "$no_symlinks" ]] && local pwdp='pwd -P' || local pwdp='pwd' # do symlinks.
+	d="$1"
+	[[ "${d%/*}" == "$d" ]] && d="./$d"							       # handle relative from cwd
+	echo "$( cd "$( echo "${d%/*}" )" 2>/dev/null; $pwdp )"/"${d##*/}" # echo result.
+	return 0 # success
+
+}
+
+function show_usage() {
+
+	echo -e "Usage:\n\t$(basename ${0}) [-s] DOI-dir result-dir"
+	echo -e "\t\t-s\tcreate symbolic links to files, not copies"
+	echo
 
 }
 
@@ -23,15 +33,24 @@ if [[ "$1" == "-s" ]] ; then
 fi
 
 if [[ "$#" -lt 2 ]] ; then
-	echo -e "Usage:\n\t$(basename ${0}) [-s] DOI-dir result-dir"
-	echo -e "\t\t-s\tcreate symbolic links to files, not copies"
-	echo
+	show_usage
 	exit 1
 fi
 
 DOI_DIR="$(get_realpath $1)"
 OUT_DIR="$(get_realpath $2)"
 SD="$(dirname $0)"
+
+if [[ -z "$DOI_DIR" ]] ; then
+	echo "DOI directory \"$1\" does not exist."
+	show_usage
+	exit 2
+fi
+
+if [[ -z "$OUT_DIR" ]] ; then
+	OUT_DIR="$2"
+	mkdir -p "${OUT_DIR}"
+fi
 
 LEN=${#DOI_DIR}
 LEN=$(( LEN - 1 ))
@@ -57,7 +76,7 @@ for patient in `ls ${DOI_DIR}` ; do
 		if [[ "$NDIRS" -gt 1 ]] ; then
 			suffix="_${scan_i}"
 		fi
-		OUT_PATIENT_DIR="$OUT_DIR/${patient}${suffix}"
+		OUT_PATIENT_DIR="${OUT_DIR}/${patient}${suffix}"
 		mkdir -p "$OUT_PATIENT_DIR"
 		if [[ "$LINK" -eq 0 ]] ; then
 			cp -r "${scan}/*" "${OUT_PATIENT_DIR}/"
