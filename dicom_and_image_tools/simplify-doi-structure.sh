@@ -44,7 +44,10 @@ if [[ "${OUT_DIR:$LEN}" == "/" ]] ; then
     OUT_DIR=${OUT_DIR:0:$LEN}             # same for output dir
 fi
 
-for patient in `ls ${DOI_DIR}` ; do 
+for patient in `ls ${DOI_DIR}` ; do
+	if [[ ${patient:0:1} == "." ]] ; then
+		continue
+	fi
 	DIRS=`${SD}/walk-doi.sh "${DOI_DIR}/${patient}"`
 	NDIRS="$(echo $DIRS | wc -l)" 
 	echo "$patient has $NDIRS scans..." 
