@@ -64,7 +64,7 @@ for i in $@ ; do
 		run_log="$log_dir"
 		err_log="$log_dir"
 	fi
-	./lna_batch_driver.sh $grey_dir $bin_dir $output_dir `cat $i` >${run_log} 2>${err_log} &
+	./lna_batch_driver.sh "${grey_dir}" "${bin_dir}" "${output_dir}" `cat ${i}` >${run_log} 2>${err_log} &
 done
 
 echo "Started running $# lists in background at $(date )."
