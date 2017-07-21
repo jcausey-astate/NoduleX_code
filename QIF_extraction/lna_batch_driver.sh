@@ -64,7 +64,7 @@ for patient in $@ ; do
     bin_file="${bin_file%.*}"
     grey_file="${grey_file%.*}"
     success=0
-    octave -W -i --no-gui  --eval "lna_by_file('${bin_file}', '${grey_file}', '$nodule', '${output_dir}')" && (echo ; echo "OK" ; echo ; success=1 ) || (echo ; echo "FAILED" ; echo)
+    octave -W -i --no-gui  --eval "lna_by_file('${bin_file}', '${grey_file}', '${nodule}', '${output_dir}')" && (echo ; echo "OK" ; echo ; success=1 ) || (echo ; echo "FAILED" ; echo)
     if [ $success -eq 1 ]; then 
         rm "${patient_bin}/*.{diary,mat}"
     fi 
