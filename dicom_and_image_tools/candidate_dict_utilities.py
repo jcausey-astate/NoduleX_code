@@ -94,7 +94,6 @@ def make_unique_id_string(x, y, z, is_nodule, inclusion, malignancy, prefix=None
         n_id = "{}{}-{}-{}~{}-{}-{}".format(prefix, int(round(float(x))), int(round(float(y))), int(round(float(z))), is_nodule, inclusion, malignancy)
     else:
         n_id = "{}{}-{}~{}-{}-{}".format(prefix, int(round(float(x))), int(round(float(y))), is_nodule, inclusion, malignancy)
-    print("{} {} {}  {}".format(x, y, z, n_id))
     return n_id
         
 def nodule_unique_id(candidate, prefix=None):
