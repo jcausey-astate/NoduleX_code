@@ -88,10 +88,13 @@ def make_unique_id_string(x, y, z, is_nodule, inclusion, malignancy, prefix=None
     string format and return the ID string.
     '''
     prefix = "{}~".format(prefix) if prefix is not None else ""
+    x, y = round(float(x), 1), round(float(y), 1)
     if z is not None:
-        n_id = "{}{}-{}-{}~{}-{}-{}".format(prefix, int(round(x)), int(round(y)), int(round(z)), is_nodule, inclusion, malignancy)
+        z = round(float(z), 1)
+        n_id = "{}{}-{}-{}~{}-{}-{}".format(prefix, int(round(float(x))), int(round(float(y))), int(round(float(z))), is_nodule, inclusion, malignancy)
     else:
         n_id = "{}{}-{}~{}-{}-{}".format(prefix, int(round(float(x))), int(round(float(y))), is_nodule, inclusion, malignancy)
+    print("{} {} {}  {}".format(x, y, z, n_id))
     return n_id
         
 def nodule_unique_id(candidate, prefix=None):
