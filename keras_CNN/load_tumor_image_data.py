@@ -29,7 +29,7 @@ def load_metadata(filename=None):
     import h5py, numpy as np
     fp = h5py.File(filename, 'r')
     hd5_metadata = {}
-    avoid_list   = ['nodule_images', 'nodule_classes']
+    avoid_list   = ['images', 'class']
     for key in fp.keys():
         if key not in avoid_list:
             hd5_metadata[key] = fp[key].value
@@ -127,7 +127,7 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
         filename = 'LIDC-IDRI.hd5'
     print("Loading data from {0}".format(filename))
     fp = h5py.File(filename, 'r')
-    y  = fp['nodule_classes'].value
+    y  = fp['class'].value
     if malignancy_to_class is not None:
         if len(malignancy_to_class) != 6:
             raise Exception("malignancy_class mapping must contain exactly 6 values, one for each malignancy level 0 - 5")
@@ -135,13 +135,13 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
         for i in range(len(y)):
             y[i] = [malignancy_to_class[int(mal[i])]]
         y = [[v] for v in y]
-    X = fp['nodule_images'].value
+    X = fp['image'].value
     X = np.array(X, dtype='float32')
 
     # Normalize if requested
     if normalize or window_normalize:
-        Xmin = fp['nodule_pixel_min'].value
-        Xmax = fp['nodule_pixel_max'].value
+        Xmin = fp['pixel_min'].value
+        Xmax = fp['pixel_max'].value
         print("{}Normalizing...".format("Window " if window_normalize else ""))
         for idx, img in enumerate(X):
             nXmin = Xmin[idx] if not window_normalize else -1000.0
@@ -281,15 +281,15 @@ class TestTrainSet(object):
         # Open the hdf file 
         self._hdf_file = h5py.File(self._hdf_filename, 'r')
         # Get info on classes and makeup of the dataset by examining the y values (classes):
-        y          = self._hdf_file['nodule_classes'].value        
+        y          = self._hdf_file['class'].value        
         if self._malignancy_to_class is not None:
             if malignancy_to_class is not None:
                 mal = self._hdf_file['nodule_malignancy']          
                 for i in range(len(y)):
                     y[i] = [malignancy_to_class[int(mal[i])]]
         if self._normalize:
-            self._Xmin = self._hdf_file['nodule_pixel_min']
-            self._Xmax = self._hdf_file['nodule_pixel_max']    
+            self._Xmin = self._hdf_file['pixel_min']
+            self._Xmax = self._hdf_file['pixel_max']    
         n_examples = len(y)
         negatives  = [i for i in range(n_examples) if y[i] == [0]]
         positives  = [i for i in range(n_examples) if y[i][0] > 0]
@@ -319,8 +319,8 @@ class TestTrainSet(object):
         self._train_location += self._batch_size
         self._test_location  += self._batch_size
         h5f     = self._hdf_file
-        h5f_X   = h5f['nodule_images']
-        h5f_y   = h5f['nodule_classes'] if self._malignancy_to_class is None else h5f['nodule_malignancy']
+        h5f_X   = h5f['image']
+        h5f_y   = h5f['class'] if self._malignancy_to_class is None else h5f['nodule_malignancy']
         X_train = np.take(h5f_X, train_indices, axis=0)
         y_train = np.take(h5f_y, train_indices, axis=0)
         X_test  = np.take(h5f_X, test_indices,  axis=0)
@@ -328,10 +328,10 @@ class TestTrainSet(object):
         Xmin_train, Xmax_trian = None, None
         Xmin_test,  Xmax_test  = None, None
         if self._normalize or self._window_normalize:
-            Xmin_train = np.take(h5f['nodule_pixel_min'], train_indices, axis=0)
-            Xmax_train = np.take(h5f['nodule_pixel_max'], train_indices, axis=0)
-            Xmin_test  = np.take(h5f['nodule_pixel_min'], test_indices,  axis=0)
-            Xmax_test  = np.take(h5f['nodule_pixel_max'], test_indices,  axis=0)
+            Xmin_train = np.take(h5f['pixel_min'], train_indices, axis=0)
+            Xmax_train = np.take(h5f['pixel_max'], train_indices, axis=0)
+            Xmin_test  = np.take(h5f['pixel_min'], test_indices,  axis=0)
+            Xmax_test  = np.take(h5f['pixel_max'], test_indices,  axis=0)
             print("{}Normalizing...".format("Window " if self._window_normalize else ""))
             for idx, img in X_train:
                 # print("               {} {}".format(Xmin_train[idx], Xmax_train[idx]))
@@ -365,17 +365,17 @@ class TestTrainSet(object):
         self._train_location = 0
         self._test_location  = 0
         h5f     = self._hdf_file
-        h5f_X   = h5f['nodule_images']
-        h5f_y   = h5f['nodule_classes'] if self._malignancy_to_class is None else h5f['nodule_malignancy']
+        h5f_X   = h5f['image']
+        h5f_y   = h5f['class'] if self._malignancy_to_class is None else h5f['nodule_malignancy']
         X_train = np.take(h5f_X, train_indices, axis=0)
         y_train = np.take(h5f_y, train_indices, axis=0)
         X_test  = np.take(h5f_X, test_indices,  axis=0)
         y_test  = np.take(h5f_y, test_indices,  axis=0)
         if self._normalize or self._window_normalize:
-            Xmin_train = np.take(h5f['nodule_pixel_min'], train_indices, axis=0)
-            Xmax_train = np.take(h5f['nodule_pixel_max'], train_indices, axis=0)
-            Xmin_test  = np.take(h5f['nodule_pixel_min'], test_indices,  axis=0)
-            Xmax_test  = np.take(h5f['nodule_pixel_max'], test_indices,  axis=0)
+            Xmin_train = np.take(h5f['pixel_min'], train_indices, axis=0)
+            Xmax_train = np.take(h5f['pixel_max'], train_indices, axis=0)
+            Xmin_test  = np.take(h5f['pixel_min'], test_indices,  axis=0)
+            Xmax_test  = np.take(h5f['pixel_max'], test_indices,  axis=0)
             print("{}Normalizing...".format("Window " if self._window_normalize else ""))
             for idx, img in enumerate(X_train):
                 # print("               {} {}".format(Xmin_train[idx], Xmax_train[idx]))

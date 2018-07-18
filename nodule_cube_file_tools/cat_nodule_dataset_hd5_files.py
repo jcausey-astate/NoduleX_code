@@ -54,29 +54,29 @@ def run_standalone():
                 if not is_hdf5(in_file_name):
                     with open(in_file_name, 'rb') as fin:
                         X,y = pickle.load(fin)
-                        hd5_datasets['nodule_images']  = X
-                        hd5_datasets['nodule_classes'] = y
+                        hd5_datasets['image']  = X
+                        hd5_datasets['class'] = y
                 else:
                     with h5py.File(in_file_name, 'r') as fin:
                         file_keys = fin.keys()
                         for key in file_keys:
                             hd5_datasets[key]  = fin[key].value
-                hd5_datasets['nodule_images']  = np.array(hd5_datasets['nodule_images'], 'float32')
-                hd5_datasets['nodule_classes'] = np.array(hd5_datasets['nodule_classes'], 'int')
-                length = len(hd5_datasets['nodule_classes'])
+                hd5_datasets['image']  = np.array(hd5_datasets['image'], 'float32')
+                hd5_datasets['class'] = np.array(hd5_datasets['class'], 'int')
+                length = len(hd5_datasets['class'])
                 if not images_initialized:
                     h5str    = h5py.special_dtype(vlen=bytes)
-                    shape    = list(hd5_datasets['nodule_images'].shape)    
+                    shape    = list(hd5_datasets['image'].shape)    
                     shape[0] = None # Let the array grow in the first dimension
-                    fout.create_dataset('nodule_images', dtype='float32', maxshape=tuple(shape), data=hd5_datasets['nodule_images'])
-                    fout.create_dataset('nodule_classes', dtype='int', maxshape=(None,1), data=hd5_datasets['nodule_classes'])
-                    fout.create_dataset('nodule_malignancy',  maxshape=(None,1), dtype='int', shape=(0,1))
-                    fout.create_dataset('nodule_inclusion',  maxshape=(None,1), dtype='int', shape=(0,1))
-                    fout.create_dataset('nodule_patients',  maxshape=(None,1), dtype=h5str, shape=(0,1))
-                    fout.create_dataset('nodule_ids',  maxshape=(None,1), dtype=h5str, shape=(0,1))
-                    fout.create_dataset("nodule_pixel_min",  maxshape=(None, 1,), dtype='float32', shape=(0,1))
-                    fout.create_dataset("nodule_pixel_max",  maxshape=(None, 1,), dtype='float32', shape=(0,1))
-                    for key in ['nodule_malignancy', 'nodule_inclusion', 'nodule_patients', 'nodule_ids', 'nodule_pixel_min', 'nodule_pixel_max']:
+                    fout.create_dataset('image', dtype='float32', maxshape=tuple(shape), data=hd5_datasets['image'])
+                    fout.create_dataset('class', dtype='int', maxshape=(None,1), data=hd5_datasets['class'])
+                    fout.create_dataset('malignancy',  maxshape=(None,1), dtype='int', shape=(0,1))
+                    fout.create_dataset('inclusion',  maxshape=(None,1), dtype='int', shape=(0,1))
+                    fout.create_dataset('patient',  maxshape=(None,1), dtype=h5str, shape=(0,1))
+                    fout.create_dataset('id',  maxshape=(None,1), dtype=h5str, shape=(0,1))
+                    fout.create_dataset("pixel_min",  maxshape=(None, 1,), dtype='float32', shape=(0,1))
+                    fout.create_dataset("pixel_max",  maxshape=(None, 1,), dtype='float32', shape=(0,1))
+                    for key in ['malignancy', 'inclusion', 'patient', 'id', 'pixel_min', 'pixel_max']:
                         try:
                             if key in hd5_datasets:
                                 fout[key].resize(length, 0)
@@ -91,12 +91,12 @@ def run_standalone():
                             sys.exit(0)
                     images_initialized = True
                 else: # Extend the dataset by resizing and then adding the new data at the end
-                    current_length = len(fout['nodule_images'])
-                    fout['nodule_images'].resize(current_length  + length, 0)
-                    fout['nodule_classes'].resize(current_length + length, 0)
-                    fout['nodule_images'][current_length:, ...]  = hd5_datasets['nodule_images']
-                    fout['nodule_classes'][current_length:, ...] = hd5_datasets['nodule_classes']                                        
-                    for key in ['nodule_malignancy', 'nodule_inclusion', 'nodule_patients', 'nodule_ids', 'nodule_pixel_min', 'nodule_pixel_max']:
+                    current_length = len(fout['image'])
+                    fout['image'].resize(current_length  + length, 0)
+                    fout['class'].resize(current_length + length, 0)
+                    fout['image'][current_length:, ...]  = hd5_datasets['image']
+                    fout['class'][current_length:, ...] = hd5_datasets['class']                                        
+                    for key in ['malignancy', 'inclusion', 'patient', 'id', 'pixel_min', 'pixel_max']:
                         if key in hd5_datasets:
                             fout[key].resize(current_length + length, 0)
                             fout[key][current_length:, ...] = hd5_datasets[key]

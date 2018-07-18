@@ -33,29 +33,29 @@ def get_args(do_usage=False):
 def map_malignancies(hd5file, malignancy_map):
     malignancy_map = [[int(v)] for v in malignancy_map]
     hfile = h5py.File(hd5file)
-    for idx in range(len(hfile['nodule_classes'])):
-        hfile['nodule_classes'][idx] = malignancy_map[hfile['nodule_malignancy'][idx][0]]
+    for idx in range(len(hfile['class'])):
+        hfile['class'][idx] = malignancy_map[hfile['malignancy'][idx][0]]
     hfile.close()
 
 def change_class(hd5file, from_class, to_class):
     from_class = int(from_class)
     to_class   = int(to_class)
     hfile      = h5py.File(hd5file)
-    for idx in range(len(hfile['nodule_classes'])):
-        if hfile['nodule_classes'][idx] == [from_class]:
-            hfile['nodule_classes'][idx] = [to_class]    
+    for idx in range(len(hfile['class'])):
+        if hfile['class'][idx] == [from_class]:
+            hfile['class'][idx] = [to_class]    
     hfile.close()
 
 def set_class_to(hd5file, to_class):
     to_class = int(to_class)
     hfile    = h5py.File(hd5file)
-    for idx in range(len(hfile['nodule_classes'])):
-        hfile['nodule_classes'][idx] = [to_class]    
+    for idx in range(len(hfile['class'])):
+        hfile['class'][idx] = [to_class]    
     hfile.close()    
 
 def print_class(hd5file):
     hfile = h5py.File(hd5file, 'r')
-    for c in hfile['nodule_classes']:
+    for c in hfile['class']:
         print('{}'.format(c[0]))
     hfile.close()        
 

@@ -42,13 +42,13 @@ def run_standalone():
         outfile = os.path.splitext(outfile)[0] + '.png'
     img_out = None
     with h5py.File(hd5file, 'r') as fp:
-        Xmin  = fp['nodule_pixel_min'].value
-        Xmax  = fp['nodule_pixel_max'].value
+        Xmin  = fp['pixel_min'].value
+        Xmax  = fp['pixel_max'].value
         available_count = len(Xmin)
         chosen_nodules  = range(available_count)
         if args['limit'] > 0 and available_count > args['limit']:
             chosen_nodules = np.random.choice(chosen_nodules, args['limit'], replace=False)
-        cube_shape = fp['nodule_images'][0].shape
+        cube_shape = fp['image'][0].shape
         n_images   = len(chosen_nodules)
         if args['width'] == 0:
             args['width'] = int(np.ceil(np.sqrt(n_images)))
@@ -58,7 +58,7 @@ def run_standalone():
         cube_mid_z = int(cube_shape[0] / 2)
         img_out  = np.zeros((cube_h * n_rows, cube_w * args['width']), dtype='float32')
         for count_idx, idx in enumerate(chosen_nodules):
-            image     = fp['nodule_images'][idx]
+            image     = fp['image'][idx]
             image     = np.array(image, dtype='float32')
             image     = image[cube_mid_z]
             if args['normalize'] or args['window_normalize']:

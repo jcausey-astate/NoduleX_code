@@ -57,9 +57,9 @@ def run_standalone():
         sys.exit(1)
 
     with h5py.File(hd5file, 'r') as fp:
-        Xmin  = fp['nodule_pixel_min'].value
-        Xmax  = fp['nodule_pixel_max'].value
-        for idx, cube in enumerate(fp['nodule_images']):
+        Xmin  = fp['pixel_min'].value
+        Xmax  = fp['pixel_max'].value
+        for idx, cube in enumerate(fp['images']):
             image     = np.array(cube, dtype='float32')
             image     = np.moveaxis(image, 0, -1)
             if args['normalize']:        
