@@ -1,18 +1,18 @@
 #!/usr/local/bin/python
 # ---------------------------------------------------------------------------------------
 # For every file in the directory, rename it so that the name contains the
-# Instance Number prior to the extension.  This puts files in the order of 
+# Instance Number prior to the extension.  This puts files in the order of
 # the scan position.
 #    example.dcm  becomes  example_001.dcm   and similar
 # Optionally, you can also rename by Patient ID:
 #    example.dcm  becomes  Example-Patient-ID_001.dcm   and similar
-#    
-# Required library:  
+#
+# Required library:
 #   pydicom (https://pypi.python.org/pypi/pydicom)
 #       If you use Pip, you can install with `pip install pydicom`
 # ---------------------------------------------------------------------------------------
 # License: MIT (https://opensource.org/licenses/MIT)
-# 
+#
 # The MIT License (MIT)
 # Copyright (c) 2015 Jason L Causey, Arkansas State University
 #
@@ -41,23 +41,33 @@ from __future__ import print_function
 try:
     import dicom
 except ImportError, e:
-    print("This script requires the pydicom library: https://pypi.python.org/pypi/pydicom")
+    print(
+        "This script requires the pydicom library: https://pypi.python.org/pypi/pydicom"
+    )
     exit(1)
 import argparse, os, sys
 
 VERBOSE = False
 
+
 def vprint(msg):
     if VERBOSE:
         print(msg)
 
-parser = argparse.ArgumentParser(description='Add scan ordering numbers to DICOM image filenames.')
-parser.add_argument('dir', type=str,
-                   help='the directory containing one or more DICOM images to process')
-parser.add_argument('--use-patient-id', dest='use_patient_id', action='store_true',
-                   help='use Patient ID for the main file name instead of current name')
-parser.add_argument('--verbose', action='store_true',
-                   help='give more verbose output')
+
+parser = argparse.ArgumentParser(
+    description="Add scan ordering numbers to DICOM image filenames."
+)
+parser.add_argument(
+    "dir", type=str, help="the directory containing one or more DICOM images to process"
+)
+parser.add_argument(
+    "--use-patient-id",
+    dest="use_patient_id",
+    action="store_true",
+    help="use Patient ID for the main file name instead of current name",
+)
+parser.add_argument("--verbose", action="store_true", help="give more verbose output")
 parser.set_defaults(verbose=False, use_patient_id=False)
 args = parser.parse_args()
 
@@ -66,20 +76,20 @@ if not os.path.isdir(args.dir):
     parser.print_help()
     exit(1)
 if args.dir[-1] != os.sep:
-    args.dir = args.dir + os.sep;
+    args.dir = args.dir + os.sep
 
 VERBOSE = args.verbose
 
-# for every DICOM (".dcm" or ".dicom") file in 'DIR', rename it by adding 
+# for every DICOM (".dcm" or ".dicom") file in 'DIR', rename it by adding
 # the Instance Number before the extension
 for filename in os.listdir(args.dir):
     file_base, file_extension = os.path.splitext(filename)
-    if not file_extension.lower() in ['.dcm', '.dicom']:
+    if not file_extension.lower() in [".dcm", ".dicom"]:
         continue
     try:
         dcm = dicom.read_file(os.path.join(args.dir, filename))
-        new_base =  str(dcm.PatientID) if args.use_patient_id else file_base
-        newname  = new_base + "_" + str(dcm.InstanceNumber) + file_extension
+        new_base = str(dcm.PatientID) if args.use_patient_id else file_base
+        newname = new_base + "_" + str(dcm.InstanceNumber) + file_extension
         vprint("Renaming " + filename + " to " + newname)
         os.rename(os.path.join(args.dir, filename), os.path.join(args.dir, newname))
     except:
