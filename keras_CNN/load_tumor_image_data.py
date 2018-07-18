@@ -1,9 +1,12 @@
 """
-Load lung-ct image data for training a CNN, where the data was created in picklefile 
+Load lung-ct image data for training a CNN, where the data was created in picklefile
 or hdf5 file formed by the 'create_data_files_from_tumors.py' script
 """
 
 import numpy as np, random, h5py, os
+
+WIN_MIN = -1000.0
+WIN_MAX =  4096.0
 
 def file_ext(filename):
     return os.path.splitext(filename)[1][1:] if filename is not None else None
@@ -13,6 +16,11 @@ def load_all_data(filename=None, normalize=False, malignancy_to_class=None, wind
         return load_all_from_hdf5(filename, normalize=normalize, malignancy_to_class=malignancy_to_class, window_normalize=window_normalize)
     else:
         return load_all_from_picklefile(filename)
+
+def load_X_data(filename, normalize=False, window_normalize=False, ids=True):
+    if file_ext(filename).lower() not in ['hdf5', 'hd5', 'hdf', 'h5']:
+        raise RuntimeError("Loading unknowns/ids from a pickle file is not supported.  Please use HDF5 files instead.")
+    return load_X_from_hdf5(filename, normalize=normalize, window_normalize=window_normalize, ids=True)
 
 def load_train_test_data(filename=None, test_pct=0.25, neg_bias=None, shuffle_seed=None, normalize=False, malignancy_to_class=None, window_normalize=False):
     neg_bias = 0.5 if neg_bias is None else neg_bias
@@ -33,7 +41,7 @@ def load_metadata(filename=None):
     for key in fp.keys():
         if key not in avoid_list:
             hd5_metadata[key] = fp[key].value
-    return hd5_metadata        
+    return hd5_metadata
 
 def load_all_from_picklefile(filename=None, test_pct=0.25, neg_bias=None, shuffle_seed=None, malignancy_to_class=None):
     """
@@ -73,12 +81,12 @@ def load_train_test_from_picklefile(filename=None, test_pct=0.25, neg_bias=None,
         neg_goal  = int(round(neg_bias * n_examples))
         pos_goal  = n_examples - neg_goal
         # print("Before: neg count: {0}; goal: {1} - pos count: {2}; goal: {3}".format(neg_count, neg_goal, pos_count, pos_goal))
-        
+
         # Remove either some postive examples or some negative examples until we get the correct
         # negative-to-positive bias (if requested)
         victims = []
         removed = 0
-        if neg_count > neg_goal: 
+        if neg_count > neg_goal:
             random.shuffle(negatives)
             while neg_count > neg_goal:
                 victims.append(negatives.pop())
@@ -93,7 +101,7 @@ def load_train_test_from_picklefile(filename=None, test_pct=0.25, neg_bias=None,
                 removed   += 1
                 pos_count -= 1
                 neg_goal   = int(round(neg_bias * (n_examples - removed)))
-                pos_goal   = n_examples - removed - neg_goal    
+                pos_goal   = n_examples - removed - neg_goal
         X_new = []
         y_new = []
         for i in range(n_examples):
@@ -113,7 +121,7 @@ def load_train_test_from_picklefile(filename=None, test_pct=0.25, neg_bias=None,
     y_test  = [y[i] for i in indices[0:test_examples]]
     X_train = [X[i] for i in indices[test_examples:]]
     y_train = [y[i] for i in indices[test_examples:]]
-        
+
     print("Divided input into {0} training and {1} test examples.".format(len(X_train), len(X_test)))
     return (np.array(X_train), np.array(y_train)), (np.array(X_test), np.array(y_test))
 
@@ -131,7 +139,7 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
     if malignancy_to_class is not None:
         if len(malignancy_to_class) != 6:
             raise Exception("malignancy_class mapping must contain exactly 6 values, one for each malignancy level 0 - 5")
-        mal = fp['nodule_malignancy']          
+        mal = fp['nodule_malignancy']
         for i in range(len(y)):
             y[i] = [malignancy_to_class[int(mal[i])]]
         y = [[v] for v in y]
@@ -144,8 +152,8 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
         Xmax = fp['pixel_max'].value
         print("{}Normalizing...".format("Window " if window_normalize else ""))
         for idx, img in enumerate(X):
-            nXmin = Xmin[idx] if not window_normalize else -1000.0
-            nXmax = Xmax[idx] if not window_normalize else  4096.0
+            nXmin = Xmin[idx] if not window_normalize else WIN_MIN
+            nXmax = Xmax[idx] if not window_normalize else WIN_MAX
             print("               {} {}".format(nXmin, nXmax))
             X[idx] = (np.array(X[idx]) - nXmin) / (nXmax - nXmin)
             X[idx][X[idx] < 0] = 0
@@ -157,6 +165,40 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
     y = y[np.where(y.ravel() >= 0)]
     y = np.array(y)
     return (X, y)
+
+def load_X_from_hdf5(filename, normalize=False, window_normalize=False, ids=True):
+    """
+    @param filename str     name of the file to load
+    @param normalize        Perform min-max normalization
+    @param window_normalize Perform window normalization
+    @return (X,ids) if `ids` is True or X otherwise
+    """
+    import h5py, numpy as np
+    if filename == None:
+        filename = 'LIDC-IDRI.hd5'
+    print("Loading data from {0}".format(filename))
+    fp = h5py.File(filename, 'r')
+    X = fp['image'].value
+    X = np.array(X, dtype='float32')
+    if ids == True:
+        ids = np.array(fp['id'].value)
+    else: 
+        ids = None
+
+    # Normalize if requested
+    if normalize or window_normalize:
+        Xmin = fp['pixel_min'].value
+        Xmax = fp['pixel_max'].value
+        print("{}Normalizing...".format("Window " if window_normalize else ""))
+        for idx, img in enumerate(X):
+            nXmin = Xmin[idx] if not window_normalize else WIN_MIN
+            nXmax = Xmax[idx] if not window_normalize else WIN_MAX
+            print("               {} {}".format(nXmin, nXmax))
+            X[idx] = (np.array(X[idx]) - nXmin) / (nXmax - nXmin)
+            X[idx][X[idx] < 0] = 0
+            X[idx][X[idx] > 1] = 1
+
+    return (X, ids) if ids is not None else X
 
 def load_train_test_from_hdf5(filename=None, test_pct=0.25, neg_bias=None, batch_size=64, shuffle_seed=None, normalize=False, malignancy_to_class=None, window_normalize=False):
     """
@@ -173,7 +215,7 @@ def load_train_test_from_hdf5(filename=None, test_pct=0.25, neg_bias=None, batch
     print("Loading data from {0}".format(filename))
     if shuffle_seed != None:
         random.seed(shuffle_seed)
-    # Use the y (class labels) vector to get length and class count stats; loading the 
+    # Use the y (class labels) vector to get length and class count stats; loading the
     # X values (the image cubes) could be memory-prohibitive.  Instead, use an iterable
     # generator object to stream batches that meet the class distribution requirements
     # on demand.
@@ -204,7 +246,7 @@ class AutoCrop(object):
         oz            = int(max(0, mz-sz) / 2)
         self._center  = (cz, cy, cx)
         self._ocenter = (oz, oy, ox)
-        
+
     def __iter__(self):
         return self
 
@@ -220,7 +262,7 @@ class AutoCrop(object):
             sz, sy, sx      = self._out_shape
             mp, mz, my, mx  = self._orig_shape
             cz, cy, cx      = self._center
-            oz, oy, ox      = self._ocenter        
+            oz, oy, ox      = self._ocenter
             cropped         = np.zeros(self._out_shape).astype(self._dtype)
             # print("cz {0}, cy {1}, cx {2}, oz {3}, oy {4}, ox {5}".format(cz, cy, cx, oz, oy, ox))
             cropped[cz:sz-cz, cy:sy-cy, cx:sx-cx] = img[oz:mz-oz, oy:my-oy, ox:my-ox]
@@ -239,7 +281,7 @@ class AutoCrop(object):
 
     def __next__(self):
         return self._crop(next(self._images))
-    
+
     def next(self):
         return self.__next__()
 
@@ -261,7 +303,7 @@ class AutoCrop(object):
 
 
 class TestTrainSet(object):
-    def __init__(self, hdf_filename, test_pct=0.25, neg_bias=0.5, batch_size=64,  normalize=False, malignancy_to_class=None, window_normalize=False):       
+    def __init__(self, hdf_filename, test_pct=0.25, neg_bias=0.5, batch_size=64,  normalize=False, malignancy_to_class=None, window_normalize=False):
         neg_bias = 0.5 if neg_bias is None else neg_bias
         self._hdf_filename        = hdf_filename
         self._neg_bias            = neg_bias
@@ -278,18 +320,18 @@ class TestTrainSet(object):
         self._window_normalize    = window_normalize
         if malignancy_to_class is not None and len(malignancy_to_class) != 6:
             raise Exception("malignancy_class mapping must contain exactly 6 values, one for each malignancy level 0 - 5")
-        # Open the hdf file 
+        # Open the hdf file
         self._hdf_file = h5py.File(self._hdf_filename, 'r')
         # Get info on classes and makeup of the dataset by examining the y values (classes):
-        y          = self._hdf_file['class'].value        
+        y          = self._hdf_file['class'].value
         if self._malignancy_to_class is not None:
             if malignancy_to_class is not None:
-                mal = self._hdf_file['nodule_malignancy']          
+                mal = self._hdf_file['nodule_malignancy']
                 for i in range(len(y)):
                     y[i] = [malignancy_to_class[int(mal[i])]]
         if self._normalize:
             self._Xmin = self._hdf_file['pixel_min']
-            self._Xmax = self._hdf_file['pixel_max']    
+            self._Xmax = self._hdf_file['pixel_max']
         n_examples = len(y)
         negatives  = [i for i in range(n_examples) if y[i] == [0]]
         positives  = [i for i in range(n_examples) if y[i][0] > 0]
@@ -335,24 +377,24 @@ class TestTrainSet(object):
             print("{}Normalizing...".format("Window " if self._window_normalize else ""))
             for idx, img in X_train:
                 # print("               {} {}".format(Xmin_train[idx], Xmax_train[idx]))
-                nXmin = Xmin_train[idx] if not self._window_normalize else -1000.0
-                nXmax = Xmax_train[idx] if not self._window_normalize else  4096.0
+                nXmin = Xmin_train[idx] if not self._window_normalize else WIN_MIN
+                nXmax = Xmax_train[idx] if not self._window_normalize else WIN_MAX
                 X_train[idx] = (np.array(X_train[idx]) - nXmin) / (nXmax - nXmin)
                 X_train[idx][X_train[idx] < 0] = 0
-                X_train[idx][X_train[idx] > 1] = 1 
+                X_train[idx][X_train[idx] > 1] = 1
             for idx, img in X_test:
                 # print("               {} {}".format(Xmin_test[idx], Xmax_test[idx]))
-                nXmin = Xmin_test[idx] if not self._window_normalize else -1000.0
-                nXmax = Xmax_test[idx] if not self._window_normalize else  4096.0
+                nXmin = Xmin_test[idx] if not self._window_normalize else WIN_MIN
+                nXmax = Xmax_test[idx] if not self._window_normalize else WIN_MAX
                 X_test[idx]  = (np.array(X_test[idx])  - nXmin)  / (nXmax - nXmin)
                 X_test[idx][X_test[idx] < 0] = 0
-                X_test[idx][X_test[idx] > 1] = 1 
+                X_test[idx][X_test[idx] > 1] = 1
             # print("min-max now: tr {} {} ts {} {}".format(X_train.min(), X_train.max(), X_test.min(), X_test.max()))
 
         if self._malignancy_to_class is not None:
             y_train = [[int(self._malignancy_to_class[v[0]])] for v in y_train]
             y_test  = [[int(self._malignancy_to_class[v[0]])] for v in y_test]
-        
+
         # print("y_train: {}".format(y_train))
         y_train = np.array(y_train)
         y_test  = np.array(y_test)
@@ -379,18 +421,18 @@ class TestTrainSet(object):
             print("{}Normalizing...".format("Window " if self._window_normalize else ""))
             for idx, img in enumerate(X_train):
                 # print("               {} {}".format(Xmin_train[idx], Xmax_train[idx]))
-                nXmin = Xmin_train[idx] if not self._window_normalize else -1000.0
-                nXmax = Xmax_train[idx] if not self._window_normalize else  4096.0
+                nXmin = Xmin_train[idx] if not self._window_normalize else WIN_MIN
+                nXmax = Xmax_train[idx] if not self._window_normalize else WIN_MAX
                 X_train[idx] = (np.array(X_train[idx]) - nXmin) / (nXmax - nXmin)
                 X_train[idx][X_train[idx] < 0] = 0
-                X_train[idx][X_train[idx] > 1] = 1 
+                X_train[idx][X_train[idx] > 1] = 1
             for idx, img in enumerate(X_test):
                 # print("               {} {}".format(Xmin_test[idx], Xmax_test[idx]))
-                nXmin = Xmin_test[idx] if not self._window_normalize else -1000.0
-                nXmax = Xmax_test[idx] if not self._window_normalize else  4096.0
+                nXmin = Xmin_test[idx] if not self._window_normalize else WIN_MIN
+                nXmax = Xmax_test[idx] if not self._window_normalize else WIN_MAX
                 X_test[idx]  = (np.array(X_test[idx])  - nXmin)  / (nXmax - nXmin)
                 X_test[idx][X_test[idx] < 0] = 0
-                X_test[idx][X_test[idx] > 1] = 1 
+                X_test[idx][X_test[idx] > 1] = 1
             # print("min-max now: tr {} {} ts {} {}".format(X_train.min(), X_train.max(), X_test.min(), X_test.max()))
 
         if self._malignancy_to_class is not None:

@@ -20,6 +20,9 @@ def get_args(do_usage=False):
     ap.add_argument('-m', dest = 'malignancy_map', required = False, 
         nargs=6, metavar=('M0', 'M1', 'M2', 'M3', 'M4', 'M5'),
         help = 'Map malignancy score to class - provide class for all malignancy scores including 0 (not rated).')
+    ap.add_argument('-C', dest = 'class_remap', required = False, 
+        nargs='+', metavar=("C1:newC1 C2:newC2 ... CN:newCN"),
+        help = 'Remap class scores to different values - provide old value and new value separated by a colon, and list these separated by spaces.')
     ap.add_argument('-c', dest = 'change_class', required = False, 
         nargs=2, metavar=('FROM', 'TO'),
         help = 'Change all classes that are currently equal to FROM to the class TO.')
@@ -35,6 +38,19 @@ def map_malignancies(hd5file, malignancy_map):
     hfile = h5py.File(hd5file)
     for idx in range(len(hfile['class'])):
         hfile['class'][idx] = malignancy_map[hfile['malignancy'][idx][0]]
+    hfile.close()
+
+def remap_classes(hd5file, class_map):
+    class_map = {int(k): [int(v)] for (k, v) in [token.split(':') for token in class_map]}
+    print(class_map)
+    hfile = h5py.File(hd5file)
+    for idx in range(len(hfile['class'])):
+        print(hfile['class'][idx])
+        try:
+            hfile['class'][idx] = class_map[hfile['class'][idx][0]]
+        except KeyError:
+            pass
+        print(hfile['class'][idx])
     hfile.close()
 
 def change_class(hd5file, from_class, to_class):
@@ -66,6 +82,8 @@ def run_standalone():
         set_class_to(hd5file, args['set_class'])
     elif args['malignancy_map'] is not None:
         map_malignancies(hd5file, args['malignancy_map'])
+    elif args['class_remap'] is not None:
+        remap_classes(hd5file, args['class_remap'])
     elif args['change_class'] is not None:
         change_class(hd5file, from_class=args['change_class'][0], to_class=args['change_class'][1])
     else:
