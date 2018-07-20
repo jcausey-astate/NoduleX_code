@@ -63,7 +63,8 @@ def main():
         expression    = get_output_from_layer(model, X, layer_index=feature_layer)
         with open(args['expression_file'], 'wb') as csvfile:
             writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-            for vec in expression:
+            for idx, vec in enumerate(expression):
+                vec = [ids[idx]] + vec
                 writer.writerow(vec)
 
     if args['predictions_file'] != None:
