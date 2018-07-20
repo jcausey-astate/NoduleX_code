@@ -64,8 +64,7 @@ def main():
         with open(args['expression_file'], 'wb') as csvfile:
             writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
             for idx, vec in enumerate(expression):
-                vec = [ids[idx]] + vec
-                writer.writerow(vec)
+                writer.writerow(flatten([ids[idx], vec]))
 
     if args['predictions_file'] != None:
         # predictions are just expression at the last layer, reduced to a single floating-point value if
