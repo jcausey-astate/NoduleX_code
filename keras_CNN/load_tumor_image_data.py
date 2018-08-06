@@ -154,7 +154,7 @@ def load_all_from_hdf5(filename=None,  normalize=False, malignancy_to_class=None
         for idx, img in enumerate(X):
             nXmin = Xmin[idx] if not window_normalize else WIN_MIN
             nXmax = Xmax[idx] if not window_normalize else WIN_MAX
-            print("               {} {}".format(nXmin, nXmax))
+            # print("               {} {}".format(nXmin, nXmax))
             X[idx] = (np.array(X[idx]) - nXmin) / (nXmax - nXmin)
             X[idx][X[idx] < 0] = 0
             X[idx][X[idx] > 1] = 1
@@ -193,7 +193,7 @@ def load_X_from_hdf5(filename, normalize=False, window_normalize=False, ids=True
         for idx, img in enumerate(X):
             nXmin = Xmin[idx] if not window_normalize else WIN_MIN
             nXmax = Xmax[idx] if not window_normalize else WIN_MAX
-            print("               {} {}".format(nXmin, nXmax))
+            # print("               {} {}".format(nXmin, nXmax))
             X[idx] = (np.array(X[idx]) - nXmin) / (nXmax - nXmin)
             X[idx][X[idx] < 0] = 0
             X[idx][X[idx] > 1] = 1

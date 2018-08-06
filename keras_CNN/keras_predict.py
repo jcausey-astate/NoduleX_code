@@ -37,10 +37,8 @@ def main():
     # Load the data file
     (X, ids) = load_X_data(data_file, normalize=args['normalize'], window_normalize=window_normalize, ids=True)
     # Feedback on the data
-    print("X shape: {} ; X[0] shape: {}  X[0][2] shape: {}".format(X.shape, X[0].shape, X[0][2].shape))
     img_rows, img_cols = X[0][2].shape
     print('img_rows: {0}, img_cols: {1}'.format(img_rows, img_cols))
-    print('X shape:', X.shape)
     
     # Check validity of model file:
     model = None
@@ -64,7 +62,8 @@ def main():
         with open(args['expression_file'], 'wb') as csvfile:
             writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
             for idx, vec in enumerate(expression):
-                writer.writerow(flatten([ids[idx], vec]))
+                vec = [ids[idx]] + vec
+                writer.writerow(vec)
 
     if args['predictions_file'] != None:
         # predictions are just expression at the last layer, reduced to a single floating-point value if
