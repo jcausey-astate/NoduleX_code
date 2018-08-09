@@ -101,7 +101,7 @@ def run_standalone():
                             fout[key].resize(current_length + length, 0)
                             fout[key][current_length:, ...] = hd5_datasets[key]
                         else:
-                            fout[key].resize(current_length + length)
+                            fout[key].resize((current_length + length, 0))
                             fout[key][:] = np.zeros(current_length + length, dtype=int) if fout[key].dtype == 'int' \
                                                                                 else np.zeros(current_length + length, dtype='float32') if fout[key].dtype == 'float32' \
                                                                                     else ['Unknown' for i in range(current_length + length)]
