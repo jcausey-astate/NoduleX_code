@@ -10,36 +10,98 @@
 
 import sys, os, csv, numpy as np
 
+
 def main():
-    output_file, csv_files, rows, value_delim, heading_delim, padding_value = process_args()
-    rows          = check_selected_rows(rows)
-    input_matrix  = read_csv_files(csv_files, selected_rows=rows, value_delim=value_delim, heading_delim=heading_delim, padding_value=padding_value)
-    feature_wise  = np.array(input_matrix).transpose()
-    write_output_matrix(output_file, feature_wise)
+    output_file, csv_files, rows, value_delim, heading_delim, padding_value, samples_as_rows = (
+        process_args()
+    )
+    sample_name_map_file = "{}_sample-names.csv".format(
+        os.path.splitext(output_file)[0]
+    )
+    rows = check_selected_rows(rows)
+    input_matrix = read_csv_files(
+        csv_files,
+        selected_rows=rows,
+        value_delim=value_delim,
+        heading_delim=heading_delim,
+        padding_value=padding_value,
+    )
+    output_matrix = input_matrix
+    if not samples_as_rows:
+        output_matrix = np.array(input_matrix).transpose()
+    write_output_matrix(output_file, output_matrix)
+    write_sample_names(sample_name_map_file, csv_files)
+
 
 def get_usage():
     return __doc__.format(os.path.basename(sys.argv[0])).strip()
 
+
 def usage():
     print(get_usage)
 
+
+def common_suffix(file_names):
+    # reverse the file names, then use os.commonprefix() and reverse that when returning
+    rev_names = [n[::-1] for n in file_names]
+    return os.path.commonprefix(rev_names)[::-1]
+
+
 def process_args():
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('output_file', metavar='output-file', type=str,
-                        help='name of output (CSV) file')
-    parser.add_argument('input_files', metavar='input-file', type=str,
-                        nargs='+', help='name(s) of input file(s) (CSV-like)')
-    parser.add_argument('--rows', dest='rows', type=int, nargs='*',
-                        help='rows to include in output matrix (numbering from 1)')
-    parser.add_argument('--remove-rows', dest='remove_rows', type=int, nargs='*',
-                        help='rows to remove from output matrix (numbering from 1)')
-    parser.add_argument('--delim', dest='value_delim', type=str, default=',',
-                        help='delimiter separating values (for features with more than one)')
-    parser.add_argument('--heading-delim', dest='heading_delim', type=str, default=':',
-                        help='delimiter separating row headings from values')
-    parser.add_argument('--padding', dest='padding_value', type=str, default='0', 
-                        help='value to pad uneven features (with more than one but varying # of values)')
+    parser.add_argument(
+        "output_file", metavar="output-file", type=str, help="name of output (CSV) file"
+    )
+    parser.add_argument(
+        "input_files",
+        metavar="input-file",
+        type=str,
+        nargs="+",
+        help="name(s) of input file(s) (CSV-like)",
+    )
+    parser.add_argument(
+        "--rows",
+        dest="rows",
+        type=int,
+        nargs="*",
+        help="rows to include in output matrix (numbering from 1)",
+    )
+    parser.add_argument(
+        "--remove-rows",
+        dest="remove_rows",
+        type=int,
+        nargs="*",
+        help="rows to remove from output matrix (numbering from 1)",
+    )
+    parser.add_argument(
+        "--delim",
+        dest="value_delim",
+        type=str,
+        default=",",
+        help="delimiter separating values (for features with more than one)",
+    )
+    parser.add_argument(
+        "--heading-delim",
+        dest="heading_delim",
+        type=str,
+        default=":",
+        help="delimiter separating row headings from values",
+    )
+    parser.add_argument(
+        "--padding",
+        dest="padding_value",
+        type=str,
+        default="0",
+        help="value to pad uneven features (with more than one but varying # of values)",
+    )
+    parser.add_argument(
+        "--samples-as-rows",
+        dest="samples_as_rows",
+        action="store_true",
+        help="when set, the samples are arranged as rows, instead columns",
+    )
     args = parser.parse_args()
     padding_value = float(args.padding_value)
     if int(padding_value) == padding_value:
@@ -51,11 +113,21 @@ def process_args():
     rows = args.rows
     if args.remove_rows is not None:
         rows = [-i for i in args.remove_rows]
-    return args.output_file, args.input_files, rows, args.value_delim, args.heading_delim, padding_value
+    return (
+        args.output_file,
+        args.input_files,
+        rows,
+        args.value_delim,
+        args.heading_delim,
+        padding_value,
+        args.samples_as_rows,
+    )
+
 
 def flatten(orig_list):
     flattened = [item for sublist in orig_list for item in sublist]
     return flattened
+
 
 def fix_length(orig_list, length, padding_value=0):
     fixed_list = orig_list
@@ -63,50 +135,76 @@ def fix_length(orig_list, length, padding_value=0):
         fixed_list.extend([padding_value] * (length - len(fixed_list)))
     return fixed_list
 
-def read_csv_files(file_list, selected_rows='all', value_delim=',', heading_delim=':', padding_value=0):
-    matrix        = []
+
+def read_csv_files(
+    file_list, selected_rows="all", value_delim=",", heading_delim=":", padding_value=0
+):
+    matrix = []
     value_lengths = []
     if not isinstance(selected_rows, list):
         selected_rows = None
-    remove_rows   = False
+    remove_rows = False
     if selected_rows is not None and any([i < 0 for i in selected_rows]):
         remove_rows = True
     for input_file in file_list:
-        with open(input_file, 'rU') as fin:
+        with open(input_file, "r") as fin:
             csvin = csv.reader(fin, delimiter=heading_delim)
             matrix_row = []
+            selected_idx = 0
             for idx, row in enumerate(csvin):
-                if (selected_rows is None) \
-                    or ((not remove_rows) and ( (idx+1)     in selected_rows)) \
-                    or (remove_rows       and (-(idx+1) not in selected_rows)):
+                if (
+                    (selected_rows is None)
+                    or ((not remove_rows) and ((idx + 1) in selected_rows))
+                    or (remove_rows and (-(idx + 1) not in selected_rows))
+                ):
                     values = flatten([i.split(value_delim) for i in row[1:]])
                     matrix_row.append(values)
-                    if idx < len(value_lengths):
-                        value_lengths[idx] = max(value_lengths[idx], len(values))
+                    if selected_idx < len(value_lengths):
+                        value_lengths[selected_idx] = max(
+                            value_lengths[selected_idx], len(values)
+                        )
                     else:
                         value_lengths.append(len(values))
+                    selected_idx += 1
             matrix.append(matrix_row)
+
     for idx, row in enumerate(matrix):
         for i in range(len(row)):
-            row[i]  = fix_length(row[i], value_lengths[i], padding_value=padding_value)
+            row[i] = fix_length(row[i], value_lengths[i], padding_value=padding_value)
         matrix[idx] = flatten(row)
     return matrix
 
-def write_output_matrix(output_filename, matrix, delim=','):
-    with open(output_filename, 'w') as fout:
+
+def write_output_matrix(output_filename, matrix, delim=","):
+    with open(output_filename, "w") as fout:
         csvout = csv.writer(fout, delimiter=delim)
         for row in matrix:
             csvout.writerow(row)
+
+
+def write_sample_names(sample_filename, sample_list):
+    # Sample names come from file names, so remove the common
+    # suffix, and also any common prefix.
+    suffix = len(common_suffix(sample_list))
+    sample_names = [os.path.split(n[:-suffix])[-1] for n in sample_list]
+    with open(sample_filename, "w") as fout:
+        csvout = csv.writer(fout)
+        for sample in sample_names:
+            csvout.writerow([sample])
+
 
 def check_selected_rows(rows):
     if rows is not None:
         if any([r < 0 for r in rows]):
             print("Removing rows {0}".format([-i for i in rows]))
             if any([r >= 0 for r in rows]):
-                raise(Exception('Cannot use "include" and "exclude" rows simultaneously.'))
+                raise (
+                    Exception('Cannot use "include" and "exclude" rows simultaneously.')
+                )
     else:
         rows = []
     return rows
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
